@@ -4,7 +4,7 @@ import joblib
 import pandas as pd
 
 # Load trained model
-model = joblib.load("models/f1_lap_time_model.pkl")
+model = joblib.load("models/optimized_f1_lap_time_model.pkl")
 
 # Initialize FastAPI
 app = FastAPI()
