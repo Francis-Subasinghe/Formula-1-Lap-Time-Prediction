@@ -35,7 +35,8 @@ if st.sidebar.button("Predict Lap Time"):
         prediction = response.json()["Predicted Lap Time (s)"]
         st.success(f"🏁 Predicted Lap Time: {prediction:.3f} seconds")
     else:
-        st.error(f"Error: {response.json()}")
+        st.write("Raw Response:", response.text)  # Show full response for debugging
+
 
 # Footer
 st.markdown("---")
