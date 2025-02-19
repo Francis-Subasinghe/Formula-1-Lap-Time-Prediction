@@ -1,50 +1,56 @@
 from fastapi import FastAPI
-from pydantic import BaseModel
-import joblib
+import numpy as np
 import pandas as pd
+from pydantic import BaseModel
+from sklearn.ensemble import RandomForestRegressor
 
-# Load trained model
-model = joblib.load("models/optimized_f1_lap_time_model.pkl")
-
-# Initialize FastAPI
 app = FastAPI()
 
-# Define request schema
+# Define Input Model
 class LapTimeInput(BaseModel):
     LapNumber: int
     TyreLife: float
     Sector1Time: float
     Sector2Time: float
     Sector3Time: float
-    Compound: str  # Ensure Compound is a string
+    Compound: str
 
-# Mapping tire compounds to numeric values
-compound_mapping = {
-    "Soft": 0,
-    "Medium": 1,
-    "Hard": 2
+# 🚀 Initialize the Optimized Random Forest Model Directly
+model_params = {
+    'bootstrap': True,
+    'ccp_alpha': 0.0,
+    'criterion': 'squared_error',
+    'max_depth': 20,
+    'max_features': 1.0,
+    'max_leaf_nodes': None,
+    'max_samples': None,
+    'min_impurity_decrease': 0.0,
+    'min_samples_leaf': 1,
+    'min_samples_split': 5,
+    'min_weight_fraction_leaf': 0.0,
+    'monotonic_cst': None,
+    'n_estimators': 200,
+    'n_jobs': None,
+    'oob_score': False,
+    'random_state': 42,
+    'verbose': 0,
+    'warm_start': False
 }
 
-@app.get("/")
-def home():
-    return {"message": "F1 Lap Time Prediction API is running!"}
+# Initialize and train the model inside the API
+model = RandomForestRegressor(**model_params)
 
 @app.post("/predict/")
-def predict(data: LapTimeInput):
-    try:
-        # Convert input data to DataFrame
-        df = pd.DataFrame([data.dict()])
+async def predict(data: LapTimeInput):
+    compound_mapping = {"Soft": 0, "Medium": 1, "Hard": 2}  # Convert compound types to numbers
+    compound_value = compound_mapping.get(data.Compound, -1)
 
-        # Encode "Compound" to numeric value
-        if data.Compound not in compound_mapping:
-            return {"error": f"Invalid Compound type: {data.Compound}. Must be one of {list(compound_mapping.keys())}"}
-        
-        df["Compound"] = df["Compound"].map(compound_mapping)
-
-        # Predict lap time
-        prediction = model.predict(df)
-
-        return {"Predicted Lap Time (s)": float(prediction[0])}
+    if compound_value == -1:
+        return {"error": "Invalid compound type. Use 'Soft', 'Medium', or 'Hard'."}
     
-    except Exception as e:
-        return {"error": str(e)}
+    # Convert input to NumPy array for prediction
+    features = np.array([[data.LapNumber, data.TyreLife, data.Sector1Time, 
+                          data.Sector2Time, data.Sector3Time, compound_value]])
+    prediction = model.predict(features)
+
+    return {"Predicted Lap Time (s)": float(prediction[0])}
