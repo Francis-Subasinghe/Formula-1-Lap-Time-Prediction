@@ -1,21 +1,28 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import numpy as np
 import joblib
 
+# Initialize FastAPI app
 app = FastAPI()
 
-# Load pre-trained lap time prediction model (replace with actual model)
-model = joblib.load("models/optimized_f1_lap_time_model.pkl")  # Ensure you have a trained model file
+# Enable CORS to allow frontend requests (IMPORTANT for Streamlit)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Change "*" to specific frontend domains for security
+    allow_credentials=True,
+    allow_methods=["*"],  
+    allow_headers=["*"],
+)
 
-class LapData(BaseModel):
-    LapNumber: int
-    TyreLife: int
-    Sector1Time: float
-    Sector2Time: float
-    Sector3Time: float
-    Compound: str
+# Load pre-trained lap time prediction model
+try:
+    model = joblib.load("models/optimized_f1_lap_time_model.pkl")
+except Exception as e:
+    print(f"🚨 Model Loading Error: {e}")
 
+# Lap data validation class
 class LapData(BaseModel):
     LapNumber: int = Field(..., gt=0, description="Lap number must be positive")
     TyreLife: int = Field(..., ge=0, description="Tyre life must be non-negative")
@@ -26,6 +33,10 @@ class LapData(BaseModel):
 
 # Define categorical encoding for tyre compounds
 tyre_encoding = {"Soft": 0, "Medium": 1, "Hard": 2}
+
+@app.get("/")
+async def home():
+    return {"message": "F1 Lap Time Prediction API is running!"}
 
 @app.post("/predict")
 async def predict_lap_time(data: LapData):
@@ -49,6 +60,3 @@ async def predict_lap_time(data: LapData):
 
     except Exception as e:
         return {"error": str(e)}
-
-
-

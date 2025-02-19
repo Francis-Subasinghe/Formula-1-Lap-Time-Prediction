@@ -16,6 +16,7 @@ compound = st.sidebar.selectbox("Tyre Compound", ["Soft", "Medium", "Hard"])
 # FastAPI Endpoint
 API_URL = "https://formula-1-lap-time-prediction.onrender.com"
 
+
 # Predict Button
 if st.sidebar.button("Predict Lap Time"):
     # Prepare data for API
