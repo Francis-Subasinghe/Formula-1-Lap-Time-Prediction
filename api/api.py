@@ -1,56 +1,54 @@
 from fastapi import FastAPI
+from pydantic import BaseModel, Field
 import numpy as np
-import pandas as pd
-from pydantic import BaseModel
-from sklearn.ensemble import RandomForestRegressor
+import joblib
 
 app = FastAPI()
 
-# Define Input Model
-class LapTimeInput(BaseModel):
+# Load pre-trained lap time prediction model (replace with actual model)
+model = joblib.load("models/optimized_f1_lap_time_model.pkl")  # Ensure you have a trained model file
+
+class LapData(BaseModel):
     LapNumber: int
-    TyreLife: float
+    TyreLife: int
     Sector1Time: float
     Sector2Time: float
     Sector3Time: float
     Compound: str
 
-# 🚀 Initialize the Optimized Random Forest Model Directly
-model_params = {
-    'bootstrap': True,
-    'ccp_alpha': 0.0,
-    'criterion': 'squared_error',
-    'max_depth': 20,
-    'max_features': 1.0,
-    'max_leaf_nodes': None,
-    'max_samples': None,
-    'min_impurity_decrease': 0.0,
-    'min_samples_leaf': 1,
-    'min_samples_split': 5,
-    'min_weight_fraction_leaf': 0.0,
-    'monotonic_cst': None,
-    'n_estimators': 200,
-    'n_jobs': None,
-    'oob_score': False,
-    'random_state': 42,
-    'verbose': 0,
-    'warm_start': False
-}
+class LapData(BaseModel):
+    LapNumber: int = Field(..., gt=0, description="Lap number must be positive")
+    TyreLife: int = Field(..., ge=0, description="Tyre life must be non-negative")
+    Sector1Time: float = Field(..., gt=0, description="Sector 1 time must be positive")
+    Sector2Time: float = Field(..., gt=0, description="Sector 2 time must be positive")
+    Sector3Time: float = Field(..., gt=0, description="Sector 3 time must be positive")
+    Compound: str
 
-# Initialize and train the model inside the API
-model = RandomForestRegressor(**model_params)
+# Define categorical encoding for tyre compounds
+tyre_encoding = {"Soft": 0, "Medium": 1, "Hard": 2}
 
-@app.post("/predict/")
-async def predict(data: LapTimeInput):
-    compound_mapping = {"Soft": 0, "Medium": 1, "Hard": 2}  # Convert compound types to numbers
-    compound_value = compound_mapping.get(data.Compound, -1)
+@app.post("/predict")
+async def predict_lap_time(data: LapData):
+    try:
+        # Convert tyre compound to numeric value
+        compound_numeric = tyre_encoding.get(data.Compound, 1)
 
-    if compound_value == -1:
-        return {"error": "Invalid compound type. Use 'Soft', 'Medium', or 'Hard'."}
-    
-    # Convert input to NumPy array for prediction
-    features = np.array([[data.LapNumber, data.TyreLife, data.Sector1Time, 
-                          data.Sector2Time, data.Sector3Time, compound_value]])
-    prediction = model.predict(features)
+        # Prepare features for model
+        features = np.array([
+            data.LapNumber,
+            data.TyreLife,
+            data.Sector1Time,
+            data.Sector2Time,
+            data.Sector3Time,
+            compound_numeric
+        ]).reshape(1, -1)
 
-    return {"Predicted Lap Time (s)": float(prediction[0])}
+        # Make prediction
+        prediction = model.predict(features)[0]
+        return {"Predicted Lap Time (s)": round(prediction, 3)}
+
+    except Exception as e:
+        return {"error": str(e)}
+
+
+
