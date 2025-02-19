@@ -14,7 +14,7 @@ sector3_time = st.sidebar.number_input("Sector 3 Time (s)", min_value=0.0, step=
 compound = st.sidebar.selectbox("Tyre Compound", ["Soft", "Medium", "Hard"])
 
 # FastAPI Endpoint
-API_URL = "https://formula-1-lap-time-prediction.onrender.com"
+API_URL = "https://formula-1-lap-time-prediction-1.onrender.com/predict"
 
 
 # Predict Button
